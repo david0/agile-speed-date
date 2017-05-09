@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Agile Speeddating</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link href="https://fonts.googleapis.com/css?family=Varela+Round" rel="stylesheet">
+
+    <script type="text/javascript" src="https://unpkg.com/vue@latest/dist/vue.js"></script>
+    <script type="text/javascript" src=" https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <style type="text/css">
+        #agilespeeddate {
+            font-family: 'Varela Round', sans-serif;
+        }
+
+
+        .buttons {
+            margin-left: 0px;
+            margin-right: 0px;
+            margin-bottom: 10px;
+        }
+
+        .buttons button {
+            background-color: #f7f7f9;
+            border: 1px solid #e1e1e8;
+            font-size: large;
+            margin: 0px;
+        }
+
+        .pager {
+            text-align: center;
+        }
+
+        .pager button {
+            border: 1px blue solid;
+            border-radius: 2px;
+            background-color: white;
+            font-size: 14pt;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            padding: 5px 14px;
+        }
+
+        .pager button:hover {
+            color: black;
+        }
+
+        .pager button:hover,
+        .pager button:focus {
+            text-decoration: none;
+            background-color: #eee
+        }
+
+        .groups {
+            text-align: center;
+        }
+
+        .user {
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .group {
+            border: 2pt solid #ddd;
+            border-radius: 16pt;
+            margin: 10pt;
+            float: left;
+        }
+
+        .user input {
+            border: none;
+            font-size: x-large;
+            font-family: 'Varela Round', sans-serif;
+            text-align: center;
+            display: inline;
+            width: 80%;
+        }
+
+        .user input.phone {
+            font-size: large;
+        }
+
+        .user .fa,
+        .user .glyphicon {
+            font-size: 100pt;
+        }
+
+        .group .user:nth-of-type(1) .fa-arrow-up {
+            display: none;
+        }
+
+        .group .user:nth-of-type(2) input.phone {
+            color: grey;
+        }
+
+        .user .fa-ban {
+            color: red;
+            display: block;
+            font-size: 20pt;
+        }
+
+        .user .fa-arrow-up {
+            clear: both;
+            display: block;
+            padding: 10pt;
+            font-size: 20pt;
+        }
+    </style>
+    <script type="text/javascript">
+        window.onload = function() {
+
+            var coffeUser = {
+                name: 'Coffee',
+                icon: 'fa fa-coffee',
+                color: 'grey'
+            };
+
+
+            function debugNames(users) {
+                var names = [];
+                users.forEach(function(u) {
+                    names.push(u.name);
+                });
+                //console.log(names);
+            }
+
+            function distribute(inusers, round) {
+                var groupList = [];
+
+                var n = inusers.length;
+
+                // copy
+                var users = inusers.slice(0);
+
+                debugNames(users);
+                var fixed = n % 2 == 0 ? users.pop() : coffeUser;
+
+                for (var i = 0; i < round; i++) {
+                    users.unshift(users.pop());
+                }
+
+                var tableLength = Math.floor((n - 1) / 2);
+                for (var i = 0; i < tableLength; i++) {
+                    var offset = n % 2 == 0 ? 1 : 0;
+                    groupList.push({
+                        userList: [
+                            users[i],
+                            users[n - 1 - offset - i]
+                        ]
+                    });
+
+                }
+
+                var headUser = fixed;
+                var otherHeadUser = users[tableLength];
+
+                groupList.push({
+                    userList: [
+                        headUser,
+                        otherHeadUser
+                    ]
+                });
+
+                return groupList;
+            };
+
+
+            Vue.component("timer", {
+                data: function() {
+                    return {
+                        'now': 0,
+                        'duration': 5000,
+                        'start': 0
+                    }
+                },
+                template: '<div>{{ remaining }} <button v-on:click="startTimer">Start</button></div>',
+                computed: {
+                    remaining: function() {
+                        return this.start + this.duration - this.now;
+                    },
+                },
+                mounted: function() {
+                    var that = this;
+                    window.setInterval(function() {
+                        that.now = Math.trunc((new Date()).getTime() / 1000);
+                    }, 1000);
+                },
+                methods: {
+                    startTimer: function() {
+                        this.start = Math.trunc((new Date()).getTime() / 1000);
+                    }
+                }
+            });
+
+
+            var STORAGE_KEY = 'agile-speed-date';
+            var userListStorage = {
+                fetch: function() {
+                    var items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+                    if (items.length > 0) {
+                        return items;
+                    } else
+                        return [{
+                            name: 'Bob',
+                            icon: 'fa fa-user-circle'
+                        }];
+                },
+                save: function(items) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+                }
+            }
+
+            new Vue({
+                el: '#agilespeeddate',
+                data: {
+                    round: 0,
+                    deletemode: false,
+                    users: userListStorage.fetch()
+                },
+                computed: {
+                    groupList: function() {
+                        return distribute(this.users, this.round)
+                    },
+                },
+                watch: {
+                    users: {
+                        handler: function(users) {
+                            userListStorage.save(users)
+                        },
+                        deep: true
+                    }
+                },
+                methods: {
+                    shuffle: function() {
+                        this.users = _.shuffle(this.users)
+                    },
+                    addUser: function() {
+                        var colors = ['#669999', '#ff9900', '#333399', '#660033', '#990000', '#336600', '#990099'];
+                        var color = colors[(this.users.length) % colors.length];
+                        var user = {
+                            name: '',
+                            phone: '',
+                            icon: 'fa fa-user-circle',
+                            color: color
+                        };
+
+                        this.users.push(user);
+                    },
+                    toggleDelete: function() {
+                        this.deletemode = !this.deletemode;
+                    },
+                    roundCtrl: function(increment) {
+                        var round = this.round + increment;
+                        round = Math.max(0, round);
+                        var n = this.users.length;
+                        if (n % 2 == 1) {
+                            n++;
+                        }
+                        round = Math.min(n - 2, round);
+                        this.round = round;
+                    },
+                    deleteUser: function(user) {
+                        this.deletemode = false;
+                        var i = this.users.indexOf(user);
+                        if (i !== -1) {
+                            this.users.splice(i, 1);
+                        }
+                    },
+                },
+            });
+
+        }
+    </script>
+</head>
+
+<body>
+    <div id="agilespeeddate">
+        <div class="buttons" role="group" aria-label="users">
+            <button type="button" class="btn btn-default" v-on:click="shuffle">
+            <i class="fa fa-random" aria-hidden="true"></i>
+            Shuffle
+          </button>
+            <button type="button" class="btn btn-default" v-on:click="addUser">
+              <span class="fa fa-user-plus" aria-hidden="true"></span> 
+              Add 
+        </button>
+            <button type="button" class="btn btn-default" v-on:click="toggleDelete">
+              <span class="fa fa-user-times" aria-hidden="true"></span> 
+              Delete 
+          </button>
+        </div>
+        <nav aria-label="rounds">
+            <div class="pager">
+                <button v-on:click="roundCtrl(-1)">
+                <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                  Previous
+            </button> Round {{round+1}}
+                <button v-on:click="roundCtrl(+1)">
+                <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                 Next
+            </button>
+            </div>
+        </nav>
+
+        <!--<timer ref="timer"></timer>-->
+
+
+        <div class="groups">
+            <div v-for="group in groupList" class="group">
+                <div v-for="user in group.userList" v-bind:user="user" class="user">
+                    <i class="fa fa-arrow-up" aria-hidden="true"></i> <br/>
+
+                    <span :class="user.icon" v-bind:style="{color: user.color ? user.color : 'black'}" aria-hidden="true"></span>
+
+                    <i v-if="deletemode" v-on:click="deleteUser(user)" class="fa fa-ban" aria-hidden="true"></i>
+
+                    <input v-model="user.name" placeholder="Name" />
+                    <input class="phone" v-model="user.phone" />
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+</body>
+
+</html>
